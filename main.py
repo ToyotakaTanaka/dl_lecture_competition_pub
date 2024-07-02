@@ -56,6 +56,7 @@ def run(args: DictConfig):
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
       
+    l2_alpha = 1e-5  # L2正則化係数を追加
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
         
@@ -68,6 +69,15 @@ def run(args: DictConfig):
             y_pred = model(X)
             
             loss = F.cross_entropy(y_pred, y)
+
+            # L2正則化項の計算
+            l2_reg = torch.tensor(0., requires_grad=True).to(args.device)
+            for param in model.parameters():
+                l2_reg = l2_reg + torch.norm(param)**2
+            
+            # 損失関数にL2正則化項を追加
+            loss = loss + args.l2_alpha * l2_reg
+
             train_loss.append(loss.item())
             
             optimizer.zero_grad()
