@@ -56,7 +56,6 @@ def run(args: DictConfig):
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
       
-    l2_alpha = 1e-5  # L2正則化係数を追加
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
         

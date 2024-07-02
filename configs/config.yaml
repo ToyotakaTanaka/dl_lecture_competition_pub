@@ -7,6 +7,9 @@ num_workers: 4
 seed: 1234
 use_wandb: False
 
+l2_alpha: 0.1e-5
+
+
 data_dir: data
 
 # Evaluation
