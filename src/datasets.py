@@ -33,13 +33,18 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         clip_min = mean - 20 * std
         clip_max = mean + 20 * std
 
-        # RobustScalerの計算
-        scaler = RobustScaler()
-        for i in tqdm(range(0, X_shape[0], batch_size), desc="Fitting RobustScaler"):
+        # クリッピングとデータの収集
+        clipped_data = []
+        for i in tqdm(range(0, X_shape[0], batch_size), desc="Clipping data"):
             batch = X[i:i+batch_size].numpy().astype(np.float32)
             batch_reshaped = batch.reshape(-1, X_shape[-1])
             batch_clipped = np.clip(batch_reshaped, clip_min, clip_max)
-            scaler.partial_fit(batch_clipped)
+            clipped_data.append(batch_clipped)
+
+        # RobustScalerのフィッティング
+        print("Fitting RobustScaler...")
+        scaler = RobustScaler()
+        scaler.fit(np.vstack(clipped_data))
 
         # パラメータの保存
         params = {
