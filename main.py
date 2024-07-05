@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from src.datasets import ThingsMEGDataset
 from src.models import BasicConvClassifier
+from src.models import VGG19_1D_Classifier
 from src.utils import set_seed
 
 
@@ -39,8 +40,13 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = BasicConvClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels
+    # model = BasicConvClassifier(
+    #    train_set.num_classes, train_set.seq_len, train_set.num_channels
+    # ).to(args.device)
+    model = VGG19_1D_Classifier(
+        train_set.num_classes,
+        train_set.seq_len,
+        train_set.num_channels
     ).to(args.device)
 
     # ------------------

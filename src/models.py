@@ -80,3 +80,47 @@ class ConvBlock(nn.Module):
         # X = F.glu(X, dim=-2)
 
         return self.dropout(X)
+
+
+class VGG19Block(nn.Module):
+    def __init__(self, in_channels, out_channels, num_convs):
+        super().__init__()
+        layers = []
+        for _ in range(num_convs):
+            layers.extend([
+                nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm1d(out_channels),
+                nn.ReLU(inplace=True)
+            ])
+            in_channels = out_channels
+        layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
+        self.block = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.block(x)
+
+class VGG19_1D_Classifier(nn.Module):
+    def __init__(self, num_classes, seq_len, in_channels):
+        super().__init__()
+        self.features = nn.Sequential(
+            VGG19Block(in_channels, 64, 2),
+            VGG19Block(64, 128, 2),
+            VGG19Block(128, 256, 4),
+            VGG19Block(256, 512, 4),
+            VGG19Block(512, 512, 4),
+        )
+        self.head = nn.Sequential(
+            nn.AdaptiveAvgPool1d(7),
+            Rearrange('b c l -> b (c l)'),
+            nn.Linear(512 * 7, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        return self.head(x)
