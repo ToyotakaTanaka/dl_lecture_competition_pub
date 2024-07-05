@@ -1,6 +1,6 @@
 batch_size: 128
-epochs: 40 
-lr: 0.1e-4
+epochs: 100 
+lr: 3e-4
 
 device: cuda:0
 num_workers: 4
