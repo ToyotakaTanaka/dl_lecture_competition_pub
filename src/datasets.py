@@ -13,7 +13,7 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         print("Computing parameters from training data...")
         X = torch.load(os.path.join(data_dir, "train_X.pt"))
         X_shape = X.shape
-        batch_size = 1000
+        batch_size = 256
 
         # 平均と標準偏差の計算
         mean_sum = np.zeros(X_shape[-1], dtype=np.float32)
