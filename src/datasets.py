@@ -5,7 +5,7 @@ from typing import Tuple
 from termcolor import cprint
 from glob import glob
 from scipy import signal
-
+from sklearn.preprocessing import RobustScaler
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
     def __init__(self, split: str, data_dir: str = "data", compute_params: bool = False) -> None:
@@ -30,24 +30,36 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def compute_and_save_params(self, params_path):
         print("Computing preprocessing parameters...")
-        all_baselines = []
+        all_data = []
         for i in range(self.num_samples):
             X_path = os.path.join(self.data_dir, f"{self.split}_X", str(i).zfill(5) + ".npy")
             X = np.load(X_path)
             X_downsampled = signal.resample(X, int(X.shape[1] * self.target_freq / self.original_freq), axis=1)
-            all_baselines.append(X_downsampled[:, self.baseline_start:self.baseline_end])
+            all_data.append(X_downsampled)
         
-        all_baselines = np.concatenate(all_baselines, axis=1)
-        baseline_mean = np.mean(all_baselines, axis=1)
-        baseline_std = np.std(all_baselines, axis=1)
+        all_data = np.concatenate(all_data, axis=1)
         
-        np.save(params_path, {"baseline_mean": baseline_mean, "baseline_std": baseline_std})
+        baseline_mean = np.mean(all_data[:, self.baseline_start:self.baseline_end], axis=1)
+        baseline_std = np.std(all_data[:, self.baseline_start:self.baseline_end], axis=1)
+        
+        robust_scaler = RobustScaler().fit(all_data.T)
+        
+        clip_value = 20 * np.std(all_data, axis=1)
+        
+        np.save(params_path, {
+            "baseline_mean": baseline_mean,
+            "baseline_std": baseline_std,
+            "robust_scaler": robust_scaler,
+            "clip_value": clip_value
+        })
         print("Parameters saved.")
 
     def load_params(self, params_path):
         params = np.load(params_path, allow_pickle=True).item()
         self.baseline_mean = params["baseline_mean"]
         self.baseline_std = params["baseline_std"]
+        self.robust_scaler = params["robust_scaler"]
+        self.clip_value = params["clip_value"]
 
     def __len__(self) -> int:
         return self.num_samples
@@ -62,7 +74,13 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         # ベースライン補正の適用
         X_corrected = self.apply_baseline_correction(X_downsampled)
         
-        X = torch.from_numpy(X_corrected)
+        # ロバストスケーリングの適用
+        X_scaled = self.apply_robust_scaling(X_corrected)
+        
+        # クリッピングの適用
+        X_clipped = self.apply_clipping(X_scaled)
+        
+        X = torch.from_numpy(X_clipped).float()
         
         subject_idx_path = os.path.join(self.data_dir, f"{self.split}_subject_idxs", str(i).zfill(5) + ".npy")
         subject_idx = torch.from_numpy(np.load(subject_idx_path))
@@ -77,6 +95,12 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def apply_baseline_correction(self, X):
         return X - self.baseline_mean[:, np.newaxis]
+
+    def apply_robust_scaling(self, X):
+        return self.robust_scaler.transform(X.T).T
+
+    def apply_clipping(self, X):
+        return np.clip(X, -self.clip_value[:, np.newaxis], self.clip_value[:, np.newaxis])
 
     @property
     def num_channels(self) -> int:
