@@ -1,5 +1,6 @@
 data/*
 !data/.gitkeep
+data-omni/*
 
 outputs/
 preprocess.py
