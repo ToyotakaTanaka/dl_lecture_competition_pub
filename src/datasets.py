@@ -4,6 +4,7 @@ import torch
 from typing import Tuple
 from termcolor import cprint
 from sklearn.preprocessing import RobustScaler
+from tqdm import tqdm
 
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
