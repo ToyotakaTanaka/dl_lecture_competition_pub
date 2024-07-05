@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from typing import Tuple
 from termcolor import cprint
+from sklearn.preprocessing import RobustScaler
 
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
@@ -14,6 +15,14 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         self.num_classes = 1854
         
         self.X = torch.load(os.path.join(data_dir, f"{split}_X.pt"))
+
+        # ロバストスケーリングの適用
+        scaler = RobustScaler()
+        X_shape = self.X.shape
+        X_reshaped = self.X.view(-1, X_shape[-1])
+        X_scaled = scaler.fit_transform(X_reshaped)
+        self.X = torch.tensor(X_scaled.reshape(X_shape), dtype=torch.float32)
+
         self.subject_idxs = torch.load(os.path.join(data_dir, f"{split}_subject_idxs.pt"))
         
         if split in ["train", "val"]:
