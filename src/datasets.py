@@ -21,7 +21,7 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         scaler = RobustScaler()
         
         # データを小さなバッチに分割して処理
-        batch_size = 1000  # この値は調整が必要かもしれません
+        batch_size = 128  # この値は調整が必要かもしれません
         scaled_data = []
         
         for i in range(0, X_shape[0], batch_size):
