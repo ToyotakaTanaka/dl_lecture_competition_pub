@@ -35,16 +35,10 @@ class VGG19_1D(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        print("Input shape:", x.shape)
-        for i, layer in enumerate(self.features):
-            x = layer(x)
-            print(f"After layer {i}:", x.shape)
+        x = self.features(x)
         x = self.avgpool(x)
-        print("After avgpool:", x.shape)
         x = x.view(x.size(0), -1)
-        print("Before classifier:", x.shape)
         x = self.classifier(x)
-        print("Output shape:", x.shape)
         return x
 
 # BasicConvClassifierの代わりにこのモデルを使用
