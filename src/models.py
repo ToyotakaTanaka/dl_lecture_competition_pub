@@ -7,16 +7,15 @@ class VGG19_1D(nn.Module):
         self.features = nn.Sequential(
             self._make_layer(input_channels, 64, 2),
             self._make_layer(64, 128, 2),
-            self._make_layer(128, 256, 4),
-            self._make_layer(256, 512, 4),
-            self._make_layer(512, 512, 4),
+            self._make_layer(128, 256, 2),
+            self._make_layer(256, 512, 2),
+            self._make_layer(512, 512, 2, pool=False),
         )
         
-        # 適応型プーリングを使用してシーケンス長の違いに対応
-        self.avgpool = nn.AdaptiveAvgPool1d(7)
+        self.avgpool = nn.AdaptiveAvgPool1d(1)
         
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 7, 4096),
+            nn.Linear(512, 4096),
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
@@ -25,20 +24,27 @@ class VGG19_1D(nn.Module):
             nn.Linear(4096, num_classes),
         )
 
-    def _make_layer(self, in_channels, out_channels, num_convs):
+    def _make_layer(self, in_channels, out_channels, num_convs, pool=True):
         layers = []
         for _ in range(num_convs):
             conv = nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1)
             layers += [conv, nn.BatchNorm1d(out_channels), nn.ReLU(inplace=True)]
             in_channels = out_channels
-        layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
+        if pool:
+            layers.append(nn.MaxPool1d(kernel_size=2, stride=2, ceil_mode=True))
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.features(x)
+        print("Input shape:", x.shape)
+        for i, layer in enumerate(self.features):
+            x = layer(x)
+            print(f"After layer {i}:", x.shape)
         x = self.avgpool(x)
-        x = torch.flatten(x, 1)
+        print("After avgpool:", x.shape)
+        x = x.view(x.size(0), -1)
+        print("Before classifier:", x.shape)
         x = self.classifier(x)
+        print("Output shape:", x.shape)
         return x
 
 # BasicConvClassifierの代わりにこのモデルを使用
