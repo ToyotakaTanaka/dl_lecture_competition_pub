@@ -8,16 +8,15 @@ class VGG19_1D(nn.Module):
         self.features = nn.Sequential(
             self._make_layer(input_channels, 64, 2),
             self._make_layer(64, 128, 2),
-            self._make_layer(128, 256, 4),
-            self._make_layer(256, 512, 4),
-            self._make_layer(512, 512, 4, pool=False),  # 最後のプーリングを削除
+            self._make_layer(128, 256, 2),
+            self._make_layer(256, 512, 2),
+            self._make_layer(512, 512, 2, pool=False),
         )
         
-        # AdaptiveMaxPool1dを使用
-        self.avgpool = nn.AdaptiveMaxPool1d(7)
+        self.avgpool = nn.AdaptiveAvgPool1d(1)
         
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 7, 4096),
+            nn.Linear(512, 4096),
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
@@ -37,10 +36,15 @@ class VGG19_1D(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        print("Input shape:", x.shape)
         x = self.features(x)
+        print("After features:", x.shape)
         x = self.avgpool(x)
-        x = torch.flatten(x, 1)
+        print("After avgpool:", x.shape)
+        x = x.view(x.size(0), -1)
+        print("Before classifier:", x.shape)
         x = self.classifier(x)
+        print("Output shape:", x.shape)
         return x
 
 class BasicConvClassifier(nn.Module):
