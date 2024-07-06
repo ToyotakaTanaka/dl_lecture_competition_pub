@@ -1,8 +1,47 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops.layers.torch import Rearrange
 
+class VGG19_1D(nn.Module):
+    def __init__(self, num_classes, input_channels, seq_len):
+        super(VGG19_1D, self).__init__()
+        self.features = nn.Sequential(
+            self._make_layer(input_channels, 64, 2),
+            self._make_layer(64, 128, 2),
+            self._make_layer(128, 256, 4),
+            self._make_layer(256, 512, 4),
+            self._make_layer(512, 512, 4, pool=False),  # 最後のプーリングを削除
+        )
+        
+        # AdaptiveMaxPool1dを使用
+        self.avgpool = nn.AdaptiveMaxPool1d(7)
+        
+        self.classifier = nn.Sequential(
+            nn.Linear(512 * 7, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, num_classes),
+        )
+
+    def _make_layer(self, in_channels, out_channels, num_convs, pool=True):
+        layers = []
+        for _ in range(num_convs):
+            conv = nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1)
+            layers += [conv, nn.BatchNorm1d(out_channels), nn.ReLU(inplace=True)]
+            in_channels = out_channels
+        if pool:
+            layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
 
 class BasicConvClassifier(nn.Module):
     def __init__(
@@ -10,33 +49,30 @@ class BasicConvClassifier(nn.Module):
         num_classes: int,
         seq_len: int,
         in_channels: int,
-        hid_dim: int = 512 
+        hid_dim: int = 128
     ) -> None:
         super().__init__()
 
         self.blocks = nn.Sequential(
             ConvBlock(in_channels, hid_dim),
             ConvBlock(hid_dim, hid_dim),
-            ConvBlock(hid_dim, hid_dim),
         )
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
-            Rearrange("b d 1 -> b d"),
+            nn.Flatten(),
             nn.Linear(hid_dim, num_classes),
         )
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
-        """_summary_
+        """
         Args:
-            X ( b, c, t ): _description_
+            X ( b, c, t ): Input tensor
         Returns:
-            X ( b, num_classes ): _description_
+            X ( b, num_classes ): Output tensor
         """
         X = self.blocks(X)
-
         return self.head(X)
-
 
 class ConvBlock(nn.Module):
     def __init__(
@@ -44,7 +80,7 @@ class ConvBlock(nn.Module):
         in_dim,
         out_dim,
         kernel_size: int = 3,
-        p_drop: float = 0.5,
+        p_drop: float = 0.1,
     ) -> None:
         super().__init__()
         
@@ -53,11 +89,9 @@ class ConvBlock(nn.Module):
 
         self.conv0 = nn.Conv1d(in_dim, out_dim, kernel_size, padding="same")
         self.conv1 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
-        self.conv2 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
         
         self.batchnorm0 = nn.BatchNorm1d(num_features=out_dim)
         self.batchnorm1 = nn.BatchNorm1d(num_features=out_dim)
-        self.batchnorm2 = nn.BatchNorm1d(num_features=out_dim)
 
         self.dropout = nn.Dropout(p_drop)
 
@@ -72,55 +106,7 @@ class ConvBlock(nn.Module):
         X = self.conv1(X) + X  # skip connection
         X = F.gelu(self.batchnorm1(X))
 
-        X = self.conv2(X) + X
-        X = F.gelu(self.batchnorm2(X))
-
-        X = self.dropout(X)
-
-        # X = F.glu(X, dim=-2)
-
         return self.dropout(X)
 
-
-class VGG19Block(nn.Module):
-    def __init__(self, in_channels, out_channels, num_convs):
-        super().__init__()
-        layers = []
-        for _ in range(num_convs):
-            layers.extend([
-                nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1),
-                nn.BatchNorm1d(out_channels),
-                nn.ReLU(inplace=True)
-            ])
-            in_channels = out_channels
-        layers.append(nn.MaxPool1d(kernel_size=2, stride=2))
-        self.block = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.block(x)
-
-class VGG19_1D_Classifier(nn.Module):
-    def __init__(self, num_classes, seq_len, in_channels):
-        super().__init__()
-        self.features = nn.Sequential(
-            VGG19Block(in_channels, 64, 2),
-            VGG19Block(64, 128, 2),
-            VGG19Block(128, 256, 4),
-            VGG19Block(256, 512, 4),
-            VGG19Block(512, 512, 4),
-        )
-        self.head = nn.Sequential(
-            nn.AdaptiveAvgPool1d(7),
-            Rearrange('b c l -> b (c l)'),
-            nn.Linear(512 * 7, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, num_classes),
-        )
-
-    def forward(self, x):
-        x = self.features(x)
-        return self.head(x)
+def get_model(num_classes, seq_len, in_channels):
+    return VGG19_1D(num_classes, in_channels, seq_len)
