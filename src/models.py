@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class VGG19_1D(nn.Module):
-    def __init__(self, num_classes, input_channels, seq_len):
+    def __init__(self, num_classes, input_channels, seq_len, l1_lambda=0.0, l2_lambda=0.0):
         super(VGG19_1D, self).__init__()
         self.features = nn.Sequential(
             self._make_layer(input_channels, 64, 2),
