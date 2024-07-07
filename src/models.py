@@ -41,6 +41,14 @@ class VGG19_1D(nn.Module):
         x = self.classifier(x)
         return x
 
+    def get_regularization_loss(self):
+        l1_loss = 0
+        l2_loss = 0
+        for param in self.parameters():
+            l1_loss += torch.sum(torch.abs(param))
+            l2_loss += torch.sum(param ** 2)
+        return self.l1_lambda * l1_loss + self.l2_lambda * l2_loss
+
 # BasicConvClassifierの代わりにこのモデルを使用
-def get_model(num_classes, seq_len, in_channels):
-    return VGG19_1D(num_classes, in_channels, seq_len)
+def get_model(num_classes, seq_len, in_channels, l1_lambda=0.0, l2_lambda=0.0):
+    return VGG19_1D(num_classes, in_channels, seq_len, l1_lambda, l2_lambda)

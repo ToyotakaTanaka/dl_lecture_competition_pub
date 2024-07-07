@@ -42,8 +42,10 @@ def run(args: DictConfig):
     # model = BasicConvClassifier(
     #     train_set.num_classes, train_set.seq_len, train_set.num_channels
     # ).to(args.device)
+    # モデルの初期化
     model = get_model(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels
+        train_set.num_classes, train_set.seq_len, train_set.num_channels,
+        l1_lambda=args.l1_lambda, l2_lambda=args.l2_lambda
     ).to(args.device)
 
     # ------------------
@@ -70,7 +72,8 @@ def run(args: DictConfig):
 
             y_pred = model(X)
             
-            loss = F.cross_entropy(y_pred, y)
+            # loss = F.cross_entropy(y_pred, y)
+            loss = F.cross_entropy(y_pred, y) + model.get_regularization_loss()
             train_loss.append(loss.item())
             
             optimizer.zero_grad()

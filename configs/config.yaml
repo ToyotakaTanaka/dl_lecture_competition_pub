@@ -9,5 +9,8 @@ use_wandb: True
 
 data_dir: data-omni
 
+l1_lambda: 1e-5
+l2_lambda: 1e-4
+
 # Evaluation
 model_path: 
