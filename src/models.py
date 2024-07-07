@@ -4,6 +4,8 @@ import torch.nn as nn
 class VGG19_1D(nn.Module):
     def __init__(self, num_classes, input_channels, seq_len, l1_lambda=0.0, l2_lambda=0.0):
         super(VGG19_1D, self).__init__()
+        self.l1_lambda = l1_lambda  # この行を追加
+        self.l2_lambda = l2_lambda  # この行を追加
         self.features = nn.Sequential(
             self._make_layer(input_channels, 64, 2),
             self._make_layer(64, 128, 2),
